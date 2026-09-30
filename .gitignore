@@ -1,0 +1,6 @@
+.env
+.env.*
+!.env.example
+logs.tar.gz
+*.tar.gz
+.DS_Store

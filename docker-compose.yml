@@ -1,0 +1,39 @@
+# n8n (workflow automation) on VPS2. Reached as https://n8n.webmanage.net
+# through VPS1's Caddy (hosting repo, N8N_UPSTREAM=http://10.20.0.2:5678)
+# over the WireGuard tunnel, so it listens only on VPS2's tunnel address.
+# Moved from the reviewgate stack on VPS1 on 2026-09-30.
+services:
+  n8n:
+    image: ${N8N_IMAGE:?set N8N_IMAGE (a pinned version) in .env}
+    container_name: n8n
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      N8N_PORT: "5678"
+      N8N_HOST: ${N8N_HOST:-n8n.webmanage.net}
+      N8N_PROTOCOL: https
+      # Cloudflare -> VPS1 Caddy -> n8n
+      N8N_PROXY_HOPS: ${N8N_PROXY_HOPS:-1}
+      N8N_EDITOR_BASE_URL: ${N8N_EDITOR_BASE_URL:-https://n8n.webmanage.net}
+      WEBHOOK_URL: ${N8N_EDITOR_BASE_URL:-https://n8n.webmanage.net}/
+      N8N_SECURE_COOKIE: "true"
+      # Decrypts saved credentials: must stay the same across moves and upgrades.
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?set N8N_ENCRYPTION_KEY in .env}
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+      N8N_RUNNERS_ENABLED: "true"
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
+      GENERIC_TIMEZONE: ${TIMEZONE:-America/New_York}
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./workflows:/workflows:ro
+    ports:
+      # Tunnel address only: not public, not on localhost-only either, since
+      # VPS1's Caddy must reach it. Docker must start after wg-quick@wg0
+      # (deal-pipeline scripts/install_docker_after_wireguard.sh).
+      - "${N8N_BIND_HOST:-10.20.0.2}:5678:5678"
+
+volumes:
+  n8n_data:
+    name: n8n_data
